@@ -175,7 +175,7 @@ def judge(pos, pz_before, pz_after):
     p = int(pos)
     zone_start = PERFECT_POS - pz_before
     zone_end = PERFECT_POS + pz_after
-    if p == PERFECT_POS:
+    if abs(p - PERFECT_POS) <= 1:
         return "PERFECT"
     elif zone_start <= p <= zone_end:
         return "Good"

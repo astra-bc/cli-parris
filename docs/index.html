@@ -276,7 +276,7 @@ function handleKey(code, key) {
 }
 
 function judge(pos, pzBefore, pzAfter) {
-  if (Math.abs(pos - PERFECT_RATIO) < 0.01) return "PERFECT";
+  if (Math.abs(pos - PERFECT_RATIO) < 0.02) return "PERFECT";
   if (pos >= PERFECT_RATIO - pzBefore && pos <= PERFECT_RATIO + pzAfter) return "Good";
   return "MISS";
 }
