@@ -419,6 +419,23 @@ def main(stdscr):
                             stdscr.addstr(row, 14 + BAR_LEN + 2, "BURNING!", curses.color_pair(1) | curses.A_BOLD)
                         except curses.error:
                             pass
+                    elif zanki >= zanki_max and boss["hp"] <= 1 and boss["marks"] > 0:
+                        # 残火の業火 ready! → rainbow bar
+                        if can_rgb:
+                            rainbow_hue = (now * 60) % 360
+                            rr, rg, rb = _hsv_to_rgb_curses(rainbow_hue, 1.0, 1.0)
+                            try:
+                                curses.init_color(RAINBOW_BG_COLOR, rr, rg, rb)
+                                stdscr.addstr(row, 14, "█" * BAR_LEN, curses.color_pair(RAINBOW_PAIR) | curses.A_BOLD)
+                                stdscr.addstr(row, 14 + BAR_LEN + 2, "[ ; ] 残火の業火！", curses.color_pair(RAINBOW_PAIR) | curses.A_BOLD)
+                            except curses.error:
+                                pass
+                        else:
+                            try:
+                                stdscr.addstr(row, 14, "█" * BAR_LEN, curses.color_pair(5) | curses.A_BOLD)
+                                stdscr.addstr(row, 14 + BAR_LEN + 2, "[ ; ] 残火の業火！", curses.color_pair(5) | curses.A_BOLD)
+                            except curses.error:
+                                pass
                     elif zanki >= zanki_max:
                         # zanki MAX → yellow bar, ready to burst
                         try:
