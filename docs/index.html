@@ -63,27 +63,33 @@ let melodyNote = 0;
 
 const SFX = {
   parryJ(note) {
-    const f = MELODY_FREQS[note % 8];
+    // pitch rises with combo: +2% per combo
+    const shift = 1 + combo * 0.02;
+    const f = MELODY_FREQS[note % 8] * shift;
     playTone(f, 0.15, "sine", 0.25);
     playTone(f * 1.5, 0.1, "sine", 0.1);
     playTone(f * 2, 0.08, "sine", 0.05);
   },
   perfectJ(note) {
-    const f = MELODY_FREQS[note % 8];
+    const shift = 1 + combo * 0.02;
+    const f = MELODY_FREQS[note % 8] * shift;
     playTone(f, 0.3, "sine", 0.35);
     playTone(f * 1.5, 0.25, "sine", 0.15);
     playTone(f * 2, 0.2, "sine", 0.1);
     playTone(f * 3, 0.15, "sine", 0.05);
   },
   parryF() {
-    playTone(80, 0.15, "sine", 0.4);
-    playTone(40, 0.1, "triangle", 0.3);
+    // F also rises slightly with combo
+    const shift = 1 + combo * 0.01;
+    playTone(80 * shift, 0.15, "sine", 0.4);
+    playTone(40 * shift, 0.1, "triangle", 0.3);
     playNoise(0.05, 0.15);
   },
   perfectF() {
-    playTone(80, 0.25, "sine", 0.5);
-    playTone(40, 0.2, "triangle", 0.35);
-    playTone(160, 0.15, "sine", 0.1);
+    const shift = 1 + combo * 0.01;
+    playTone(80 * shift, 0.25, "sine", 0.5);
+    playTone(40 * shift, 0.2, "triangle", 0.35);
+    playTone(160 * shift, 0.15, "sine", 0.1);
     playNoise(0.06, 0.2);
   },
   miss() { playTone(80, 0.08, "sine", 0.1); },
