@@ -238,9 +238,9 @@ def main(stdscr):
     RAINBOW_FG_COLOR = 101   # custom color slot for foreground text
     RAINBOW_PAIR = 10
     if can_rgb:
-        curses.init_color(RAINBOW_BG_COLOR, 0, 0, 0)
-        curses.init_color(RAINBOW_FG_COLOR, 1000, 1000, 1000)
-        curses.init_pair(RAINBOW_PAIR, RAINBOW_FG_COLOR, RAINBOW_BG_COLOR)
+        curses.init_color(RAINBOW_BG_COLOR, 300, 300, 300)  # gauge color (foreground for █)
+        curses.init_color(RAINBOW_FG_COLOR, 0, 0, 0)
+        curses.init_pair(RAINBOW_PAIR, RAINBOW_BG_COLOR, -1)  # colored text on default bg
 
     # Pre-generate sounds
     sound._ensure_sounds()
@@ -457,14 +457,18 @@ def main(stdscr):
                         atk_ratio = 1.0 - (atk_remain / atk_cd)
                         atk_filled = int(BAR_LEN * atk_ratio)
                         atk_gauge = "█" * atk_filled + "░" * (BAR_LEN - atk_filled)
+                        # combo color for cooldown bar
+                        cd_color = curses.color_pair(RAINBOW_PAIR) if (can_rgb and combo >= 1) else curses.color_pair(3)
                         try:
-                            stdscr.addstr(row, 14, atk_gauge, curses.color_pair(3))
+                            stdscr.addstr(row, 14, atk_gauge, cd_color)
                         except curses.error:
                             pass
                     else:
+                        # READY bar with combo color
+                        ready_color = curses.color_pair(RAINBOW_PAIR) | curses.A_BOLD if (can_rgb and combo >= 1) else curses.color_pair(2) | curses.A_BOLD
                         try:
-                            stdscr.addstr(row, 14, "█" * BAR_LEN, curses.color_pair(2) | curses.A_BOLD)
-                            stdscr.addstr(row, 14 + BAR_LEN + 2, "READY!", curses.color_pair(2) | curses.A_BOLD)
+                            stdscr.addstr(row, 14, "█" * BAR_LEN, ready_color)
+                            stdscr.addstr(row, 14 + BAR_LEN + 2, "READY!", ready_color)
                         except curses.error:
                             pass
                     row += 2
@@ -621,7 +625,7 @@ def main(stdscr):
             except curses.error:
                 pass
 
-            # ── Flash / Combo color effect ──
+            # ── Flash effect (parry/zanki only) ──
             if now < flash_until:
                 blink_on = int((now - (flash_until - 0.6)) / 0.08) % 2 == 0
                 try:
@@ -631,57 +635,34 @@ def main(stdscr):
                         stdscr.bkgd(' ')
                 except curses.error:
                     pass
-            elif combo >= 1 and can_rgb:
-                # Background starts white, one RGB channel drops per combo
-                # fff → ffd → ffb → ff9 → ... cycling through R, G, B channels
-                # Each combo subtracts ~66 (curses 0-1000 scale) from one channel
+            else:
+                try:
+                    stdscr.bkgd(' ')
+                except curses.error:
+                    pass
+
+            # ── Combo color: update SPACE lane gauge RGB ──
+            if can_rgb and combo >= 1:
                 step = 66
                 c = combo - 1
-                r = 1000
-                g = 1000
-                b = 1000
-                # Phase 0: drop B (white → yellow)
-                # Phase 1: drop R (yellow → green)
-                # Phase 2: drop G (green → blue-ish) ... etc
-                phase = c // 15  # 15 combos per phase
+                cr, cg, cb = 1000, 1000, 1000
+                phase = c // 15
                 pos = c % 15
                 drop = min(pos * step, 1000)
                 channel = phase % 6
-                if channel == 0:    # fff → ff0 (white → yellow)
-                    b = max(0, 1000 - drop)
-                elif channel == 1:  # ff0 → 0f0 (yellow → green)
-                    r = max(0, 1000 - drop)
-                elif channel == 2:  # 0f0 → 0ff (green → cyan)
-                    b = min(1000, drop)
-                    r = 0
-                elif channel == 3:  # 0ff → 00f (cyan → blue)
-                    g = max(0, 1000 - drop)
-                    r = 0
-                elif channel == 4:  # 00f → f0f (blue → magenta)
-                    r = min(1000, drop)
-                    g = 0
-                elif channel == 5:  # f0f → f00 (magenta → red)
-                    b = max(0, 1000 - drop)
-                    g = 0
-                # Keep background dim (30% brightness)
-                br = int(r * 0.3)
-                bg = int(g * 0.3)
-                bb = int(b * 0.3)
-                # Foreground: bright for readability
-                fr = min(1000, 1000 - br + 500)
-                fg = min(1000, 1000 - bg + 500)
-                fb = min(1000, 1000 - bb + 500)
+                if channel == 0:    cb = max(0, 1000 - drop)
+                elif channel == 1:  cr = max(0, 1000 - drop); cb = 0
+                elif channel == 2:  cb = min(1000, drop); cr = 0
+                elif channel == 3:  cg = max(0, 1000 - drop); cr = 0
+                elif channel == 4:  cr = min(1000, drop); cg = 0
+                elif channel == 5:  cb = max(0, 1000 - drop); cg = 0
                 try:
-                    curses.init_color(RAINBOW_BG_COLOR, br, bg, bb)
-                    curses.init_color(RAINBOW_FG_COLOR, fr, fg, fb)
-                    stdscr.bkgd(' ', curses.color_pair(RAINBOW_PAIR))
+                    curses.init_color(RAINBOW_BG_COLOR, cr, cg, cb)
                 except curses.error:
                     pass
-            else:
+            elif can_rgb:
                 try:
-                    if can_rgb:
-                        curses.init_color(RAINBOW_BG_COLOR, 0, 0, 0)
-                    stdscr.bkgd(' ')
+                    curses.init_color(RAINBOW_BG_COLOR, 300, 300, 300)
                 except curses.error:
                     pass
 
