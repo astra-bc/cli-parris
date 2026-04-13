@@ -349,6 +349,7 @@ def main(stdscr):
                     player_hp = max(0, player_hp - boss["atk"])
                     zanki = max(0, zanki - 2)
                     combo = 0
+                    lock_until = now + 0.5  # miss stun: block attack
                     sound.play("miss")
 
                 # bullet reaches end → deactivate
@@ -779,6 +780,7 @@ def main(stdscr):
                         zanki = max(0, zanki - 2)
                         melody_note = 0  # reset melody on miss
                         combo = 0
+                        lock_until = now + 0.5  # miss stun: block attack
                         sound.play("miss")
 
             # Attack (Space)
