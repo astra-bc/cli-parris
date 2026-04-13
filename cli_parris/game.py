@@ -698,7 +698,7 @@ def main(stdscr):
                     parry_pressed = lane_idx
                     break
 
-            if parry_pressed is not None and not is_locked:
+            if parry_pressed is not None:
                 # find the frontmost bullet in this lane
                 lane_bullets = [b for b in bullets if b.active and b.lane == parry_pressed
                                 and b.btype == "parry" and now >= b.start_time]
