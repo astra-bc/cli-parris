@@ -40,24 +40,11 @@
 ### 必要なもの
 
 - Python 3.8 以上
-- macOS（サウンド再生に `afplay` を使用）
 - ターミナルの幅 80 文字以上推奨
+- macOS: サウンド対応（`afplay` 使用）
+- Windows: `windows-curses` が必要（サウンドは未対応）
 
-### GitHub からインストール
-
-```bash
-pip install git+https://github.com/astra-bc/cli-parris.git
-```
-
-### ソースからインストール
-
-```bash
-git clone https://github.com/astra-bc/cli-parris.git
-cd cli-parris
-pip install .
-```
-
-### 開発用インストール
+### macOS / Linux
 
 ```bash
 git clone https://github.com/astra-bc/cli-parris.git
@@ -66,6 +53,31 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 ```
+
+### Windows
+
+```powershell
+git clone https://github.com/astra-bc/cli-parris.git
+cd cli-parris
+python -m venv .venv
+.venv\Scripts\activate
+pip install windows-curses
+pip install -e .
+```
+
+> **Windows の注意点:**
+> - **Windows Terminal** の使用を推奨（cmd.exe でも動くがレイアウトが崩れる場合あり）
+> - サウンドは現在 macOS のみ対応（Windows では無音でプレイ可能）
+> - 色の表示が異なる場合があります
+> - `python3` ではなく `python` を使ってください
+
+### pip で直接インストール（macOS / Linux / Windows 共通）
+
+```bash
+pip install git+https://github.com/astra-bc/cli-parris.git
+```
+
+Windows の場合は先に `pip install windows-curses` が必要です。
 
 ## 遊び方
 
