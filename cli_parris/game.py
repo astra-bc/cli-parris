@@ -70,83 +70,59 @@ Q = 0.667   # quarter note
 E = 0.333   # eighth note
 
 WAVE_PATTERNS = [
-    # ── 8-beat F only (intro) ──
+    # ── F only (intro/breathing room) ──
     [*_f_beat(0, 8)],
 
-    # ── F 8-beat + J quarter notes ──
-    [*_f_beat(0, 8), (0, 0.0, S), (0, Q, S), (0, Q*2, S), (0, Q*3, S)],
+    # ── F 8-beat + J lead: 1 note ──
+    [*_f_beat(0, 8), (0, 0.0, S)],
 
-    # ── F 8-beat + J ♪♪♩ ♪♪♩ ──
-    [*_f_beat(0, 8),
-     (0, 0.0, S), (0, E, S), (0, Q, S),
-     (0, Q*2, S), (0, Q*2+E, S), (0, Q*3, S)],
+    # ── F 8-beat + J lead: 2 notes (head & tail) ──
+    [*_f_beat(0, 8), (0, 0.0, S), (0, Q*2, S)],
 
-    # ── F 8-beat + J syncopated ──
-    [*_f_beat(0, 8),
-     (0, 0.0, S), (0, Q, S), (0, Q+E, S), (0, Q*2, S), (0, Q*3, S)],
+    # ── F 8-beat + J lead: 3 notes (1st/3rd/5th beat) ──
+    [*_f_beat(0, 8), (0, 0.0, S), (0, Q, S), (0, Q*2, S)],
 
-    # ── F 8-beat + J march pickup ♩♩ ♪♪♪♪ ──
-    [*_f_beat(0, 8),
-     (0, 0.0, S), (0, Q, S),
-     (0, Q*2, S), (0, Q*2+E, S), (0, Q*3, S), (0, Q*3+E, S)],
+    # ── F 8-beat + J lead: 2 off-beat ──
+    [*_f_beat(0, 8), (0, E, S), (0, Q+E, S)],
 
-    # ── F 8-beat + J trepak ♪♪♪♪♪♪♪♪ ──
-    [*_f_beat(0, 8),
-     (0, 0.0, S), (0, E, S), (0, E*2, S), (0, E*3, S),
-     (0, E*4, S), (0, E*5, S), (0, E*6, S), (0, E*7, S)],
+    # ── F 8-beat + J lead: dotted pair ──
+    [*_f_beat(0, 8), (0, 0.0, S), (0, Q+E, S)],
 
-    # ── F 8-beat + J dotted ♩.♪ ♩.♪ ──
-    [*_f_beat(0, 8),
-     (0, 0.0, S), (0, Q+E, S), (0, Q*2, S), (0, Q*3+E, S)],
+    # ── F 8-beat + J lead: 3 notes end phrase ──
+    [*_f_beat(0, 8), (0, Q, S), (0, Q*2, S), (0, Q*2+E, S)],
 
-    # ── F 8-beat + J 3-note phrase ──
-    [*_f_beat(0, 8),
-     (0, 0.0, S), (0, Q, S), (0, Q*2, S)],
+    # ── F 8-beat + J lead: pickup 2 ──
+    [*_f_beat(0, 8), (0, Q*2, S), (0, Q*3, S)],
 
-    # ── F 8-beat + J rest then burst ──
-    [*_f_beat(0, 8),
-     (0, Q*2, S), (0, Q*2+E, S), (0, Q*3, S), (0, Q*3+E, S)],
+    # ── F 8-beat + J lead: 1 accent late ──
+    [*_f_beat(0, 8), (0, Q*3, S)],
 
-    # ── F 8-beat + J off-beat melody ──
-    [*_f_beat(0, 8),
-     (0, E/2, S), (0, E*1.5, S), (0, E*2.5, S), (0, E*3.5, S),
-     (0, E*4.5, S), (0, E*5.5, S), (0, E*6.5, S), (0, E*7.5, S)],
+    # ── F 8-beat + J lead: 2 quick notes ──
+    [*_f_beat(0, 8), (0, 0.0, S), (0, E, S)],
 ]
 
-# Harder: slightly faster (BPM105ish)
-SH = 2.2   # hard J speed
-SFH = 3.0  # hard F speed
+# Harder: J gets 3-4 notes, slightly faster
+SH = 2.2
+SFH = 3.0
 
 def _f_beat_h(start, count, interval=0.333):
     return [(1, start + i * interval, SFH) for i in range(count)]
 
 WAVE_PATTERNS_HARD = [
-    # ── F 16-beat + J rapid melody ──
-    [*_f_beat_h(0, 16, E/2),
-     (0, 0.0, SH), (0, E, SH), (0, E*2, SH), (0, E*3, SH),
-     (0, E*4, SH), (0, E*5, SH), (0, E*6, SH), (0, E*7, SH)],
+    # ── F 8-beat + J lead: 4 quarter notes ──
+    [*_f_beat_h(0, 8), (0, 0.0, SH), (0, Q, SH), (0, Q*2, SH), (0, Q*3, SH)],
 
-    # ── F 8-beat + J unison ──
-    [*_f_beat_h(0, 8),
-     (0, 0.0, SH), (0, E, SH), (0, E*2, SH), (0, E*3, SH),
-     (0, E*4, SH), (0, E*5, SH), (0, E*6, SH), (0, E*7, SH)],
+    # ── F 8-beat + J lead: 3 + pickup ──
+    [*_f_beat_h(0, 8), (0, 0.0, SH), (0, Q, SH), (0, Q*2+E, SH)],
 
-    # ── F 8-beat + J 16th rush ──
-    [*_f_beat_h(0, 8),
-     (0, 0.0, SH), (0, E/2, SH), (0, E, SH), (0, E*1.5, SH),
-     (0, E*2, SH), (0, E*2.5, SH), (0, E*3, SH), (0, E*3.5, SH),
-     (0, E*4, SH), (0, E*4.5, SH), (0, E*5, SH), (0, E*5.5, SH)],
+    # ── F 8-beat + J lead: 4 syncopated ──
+    [*_f_beat_h(0, 8), (0, E, SH), (0, Q+E, SH), (0, Q*2, SH), (0, Q*3, SH)],
 
-    # ── F 8-beat + J off-beat syncopation ──
-    [*_f_beat_h(0, 8),
-     (0, E/2, SH), (0, E*1.5, SH), (0, E*2.5, SH), (0, E*3.5, SH),
-     (0, E*4.5, SH), (0, E*5.5, SH)],
+    # ── F 8-beat + J lead: triplet feel ──
+    [*_f_beat_h(0, 8), (0, 0.0, SH), (0, E, SH), (0, Q, SH)],
 
-    # ── F double-pump + J finale ──
-    [*_f_beat_h(0, 16, E/2),
-     (0, 0.0, SH), (0, E, SH), (0, E*2, SH),
-     (0, E*4, SH), (0, E*5, SH), (0, E*6, SH),
-     (0, Q*4, SH), (0, Q*4+E, SH)],
+    # ── F double-pump + J accents ──
+    [*_f_beat_h(0, 16, E/2), (0, 0.0, SH), (0, Q, SH), (0, Q*2, SH)],
 ]
 
 ITEMS = [
@@ -503,17 +479,30 @@ def main(stdscr):
                     except curses.error:
                         pass
 
-                    # color the bullets
+                    # color the bullets by state
                     for b in lane_bullets:
                         p = int(b.pos)
                         if 0 <= p < BAR_LEN:
-                            if b.btype == "missed":
-                                # gray bullet flowing past
+                            if b.btype == "perfect":
+                                # blue - PERFECT
+                                try:
+                                    stdscr.addstr(row, 14 + p, "●", curses.color_pair(8) | curses.A_BOLD)
+                                except curses.error:
+                                    pass
+                            elif b.btype == "good":
+                                # cyan - Good
+                                try:
+                                    stdscr.addstr(row, 14 + p, "●", curses.color_pair(4) | curses.A_BOLD)
+                                except curses.error:
+                                    pass
+                            elif b.btype == "missed":
+                                # gray - MISS
                                 try:
                                     stdscr.addstr(row, 14 + p, "●", curses.A_DIM)
                                 except curses.error:
                                     pass
                             else:
+                                # red - active parry bullet
                                 try:
                                     stdscr.addstr(row, 14 + p, "●", curses.color_pair(3) | curses.A_BOLD)
                                 except curses.error:
@@ -729,7 +718,13 @@ def main(stdscr):
                     target_b = lane_bullets[0]
                     p_pz = boss["parry_zone_j"] if parry_pressed == 0 else boss["parry_zone_f"]
                     result = judge(target_b.pos, p_pz[0] + parry_bonus, p_pz[1] + parry_bonus)
-                    target_b.active = False
+                    # Keep bullet flowing with color change (don't deactivate)
+                    if result == "PERFECT":
+                        target_b.btype = "perfect"
+                    elif result == "Good":
+                        target_b.btype = "good"
+                    else:
+                        target_b.btype = "missed"
                     target_b.result = result
                     target_b.result_time = now
                     result_display[parry_pressed] = (result, now)
