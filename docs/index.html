@@ -459,8 +459,9 @@ function drawGame(now) {
     const zoneStart = (PERFECT_RATIO - pzB) * BAR_W;
     const zoneEnd = (PERFECT_RATIO + pzA) * BAR_W;
     ctx.fillStyle = "#333"; ctx.fillRect(BAR_X + zoneStart, barY, zoneEnd - zoneStart, BAR_H);
-    // Perfect line
-    ctx.fillStyle = "#888"; ctx.fillRect(BAR_X + PERFECT_RATIO * BAR_W - 1, barY, 3, BAR_H);
+    // Perfect zone (wider visual)
+    const perfectW = 0.02 * BAR_W * 2; // matches judgment width
+    ctx.fillStyle = "#888"; ctx.fillRect(BAR_X + PERFECT_RATIO * BAR_W - perfectW / 2, barY, perfectW, BAR_H);
 
     // Bullets
     const laneBullets = bullets.filter(b => (b.active || b.btype !== "parry") && b.lane === li && now >= b.startTime);
