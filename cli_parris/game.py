@@ -633,8 +633,8 @@ def main(stdscr):
                 except curses.error:
                     pass
             elif combo >= RAINBOW_COMBO_THRESHOLD and can_rgb:
-                # Smooth RGB rainbow: hue shifts 15 degrees per combo
-                hue = ((combo - RAINBOW_COMBO_THRESHOLD) * 15) % 360
+                # Smooth flowing gradient: hue drifts slowly over time
+                hue = (now * 20) % 360  # 20 degrees/sec = 18 seconds for full cycle
                 r, g, b = _hsv_to_rgb_curses(hue, 0.6, 0.3)
                 fr, fg, fb = _hsv_to_rgb_curses(hue, 0.1, 1.0)
                 try:
