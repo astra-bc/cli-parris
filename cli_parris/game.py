@@ -621,8 +621,7 @@ def main(stdscr):
             except curses.error:
                 pass
 
-            # ── Flash / Rainbow effect ──
-            RAINBOW_COMBO_THRESHOLD = 5
+            # ── Flash / Combo color effect ──
             if now < flash_until:
                 blink_on = int((now - (flash_until - 0.6)) / 0.08) % 2 == 0
                 try:
@@ -632,13 +631,48 @@ def main(stdscr):
                         stdscr.bkgd(' ')
                 except curses.error:
                     pass
-            elif combo >= RAINBOW_COMBO_THRESHOLD and can_rgb:
-                # Smooth flowing gradient: hue drifts slowly over time
-                hue = (now * 20) % 360  # 20 degrees/sec = 18 seconds for full cycle
-                r, g, b = _hsv_to_rgb_curses(hue, 0.6, 0.3)
-                fr, fg, fb = _hsv_to_rgb_curses(hue, 0.1, 1.0)
+            elif combo >= 1 and can_rgb:
+                # Background starts white, one RGB channel drops per combo
+                # fff → ffd → ffb → ff9 → ... cycling through R, G, B channels
+                # Each combo subtracts ~66 (curses 0-1000 scale) from one channel
+                step = 66
+                c = combo - 1
+                r = 1000
+                g = 1000
+                b = 1000
+                # Phase 0: drop B (white → yellow)
+                # Phase 1: drop R (yellow → green)
+                # Phase 2: drop G (green → blue-ish) ... etc
+                phase = c // 15  # 15 combos per phase
+                pos = c % 15
+                drop = min(pos * step, 1000)
+                channel = phase % 6
+                if channel == 0:    # fff → ff0 (white → yellow)
+                    b = max(0, 1000 - drop)
+                elif channel == 1:  # ff0 → 0f0 (yellow → green)
+                    r = max(0, 1000 - drop)
+                elif channel == 2:  # 0f0 → 0ff (green → cyan)
+                    b = min(1000, drop)
+                    r = 0
+                elif channel == 3:  # 0ff → 00f (cyan → blue)
+                    g = max(0, 1000 - drop)
+                    r = 0
+                elif channel == 4:  # 00f → f0f (blue → magenta)
+                    r = min(1000, drop)
+                    g = 0
+                elif channel == 5:  # f0f → f00 (magenta → red)
+                    b = max(0, 1000 - drop)
+                    g = 0
+                # Keep background dim (30% brightness)
+                br = int(r * 0.3)
+                bg = int(g * 0.3)
+                bb = int(b * 0.3)
+                # Foreground: bright for readability
+                fr = min(1000, 1000 - br + 500)
+                fg = min(1000, 1000 - bg + 500)
+                fb = min(1000, 1000 - bb + 500)
                 try:
-                    curses.init_color(RAINBOW_BG_COLOR, r, g, b)
+                    curses.init_color(RAINBOW_BG_COLOR, br, bg, bb)
                     curses.init_color(RAINBOW_FG_COLOR, fr, fg, fb)
                     stdscr.bkgd(' ', curses.color_pair(RAINBOW_PAIR))
                 except curses.error:
