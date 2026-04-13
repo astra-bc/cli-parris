@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nononono2 - 灰都殺伐代行</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #111; color: #eee; font-family: 'Courier New', monospace; overflow: hidden; }
+canvas { display: block; margin: 0 auto; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+"use strict";
+
+// ─── Canvas Setup ───
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = 900;
+canvas.height = 600;
+
+// ─── Audio ───
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function ensureAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
+
+function playTone(freq, duration, type = "sine", volume = 0.3, detune = 0) {
+  ensureAudio();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  osc.detune.value = detune;
+  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function playNoise(duration, volume = 0.2) {
+  ensureAudio();
+  const bufSize = audioCtx.sampleRate * duration;
+  const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / bufSize * 5);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  src.connect(gain);
+  gain.connect(audioCtx.destination);
+  src.start();
+}
+
+// Melody notes (E6-E7 Nutcracker scale)
+const MELODY_FREQS = [1319, 1480, 1568, 1760, 1976, 2093, 2349, 2637];
+let melodyNote = 0;
+
+const SFX = {
+  parryJ(note) {
+    const f = MELODY_FREQS[note % 8];
+    playTone(f, 0.15, "sine", 0.25);
+    playTone(f * 1.5, 0.1, "sine", 0.1);
+    playTone(f * 2, 0.08, "sine", 0.05);
+  },
+  perfectJ(note) {
+    const f = MELODY_FREQS[note % 8];
+    playTone(f, 0.3, "sine", 0.35);
+    playTone(f * 1.5, 0.25, "sine", 0.15);
+    playTone(f * 2, 0.2, "sine", 0.1);
+    playTone(f * 3, 0.15, "sine", 0.05);
+  },
+  parryF() {
+    playTone(80, 0.15, "sine", 0.4);
+    playTone(40, 0.1, "triangle", 0.3);
+    playNoise(0.05, 0.15);
+  },
+  perfectF() {
+    playTone(80, 0.25, "sine", 0.5);
+    playTone(40, 0.2, "triangle", 0.35);
+    playTone(160, 0.15, "sine", 0.1);
+    playNoise(0.06, 0.2);
+  },
+  miss() { playTone(80, 0.08, "sine", 0.1); },
+  attack() {
+    playNoise(0.1, 0.3);
+    playTone(400, 0.08, "sawtooth", 0.15);
+  },
+  kill() {
+    playTone(440, 0.4, "sine", 0.3);
+    playTone(880, 0.3, "sine", 0.2);
+    playTone(1320, 0.25, "sine", 0.1);
+  },
+  start() { playTone(330, 0.3, "sine", 0.2); playTone(440, 0.2, "sine", 0.15); },
+  zanki() { playTone(220, 0.5, "sawtooth", 0.2); playTone(110, 0.4, "sine", 0.3); },
+};
+
+// ─── Constants ───
+const BAR_W = 600, BAR_H = 28;
+const BAR_X = 200, LANE_GAP = 60;
+const PERFECT_RATIO = 0.75; // 45/60
+const BOSS = { name: "堕落した都知事", aa: "{o_o}", hp: 40, maxHp: 40, atk: 5, marks: 3, maxMarks: 3,
+  pzJ: [5/60, 2/60], pzF: [8/60, 3/60] }; // before/after as ratio
+const WEAPON = { name: "殺意の出刃包丁", atk: 5, lockSec: 0.3, cooldown: 0.8 };
+const Q = 0.667, E = 0.333, S = 3.0, SH = 2.2;
+
+function fBeat(start, count, interval = 0.333, speed = S) {
+  const r = [];
+  for (let i = 0; i < count; i++) r.push({ lane: 1, delay: start + i * interval, speed });
+  return r;
+}
+
+const WAVE_PATTERNS = [
+  [...fBeat(0,8)],
+  [...fBeat(0,8), {lane:0,delay:0,speed:S}],
+  [...fBeat(0,8), {lane:0,delay:0,speed:S}, {lane:0,delay:Q*2,speed:S}],
+  [...fBeat(0,8), {lane:0,delay:0,speed:S}, {lane:0,delay:Q,speed:S}, {lane:0,delay:Q*2,speed:S}],
+  [...fBeat(0,8), {lane:0,delay:E,speed:S}, {lane:0,delay:Q+E,speed:S}],
+  [...fBeat(0,8), {lane:0,delay:0,speed:S}, {lane:0,delay:Q+E,speed:S}],
+  [...fBeat(0,8), {lane:0,delay:Q,speed:S}, {lane:0,delay:Q*2,speed:S}, {lane:0,delay:Q*2+E,speed:S}],
+  [...fBeat(0,8), {lane:0,delay:Q*2,speed:S}, {lane:0,delay:Q*3,speed:S}],
+  [...fBeat(0,8), {lane:0,delay:Q*3,speed:S}],
+  [...fBeat(0,8), {lane:0,delay:0,speed:S}, {lane:0,delay:E,speed:S}],
+];
+const WAVE_PATTERNS_HARD = [
+  [...fBeat(0,8,0.333,SH), {lane:0,delay:0,speed:SH}, {lane:0,delay:Q,speed:SH}, {lane:0,delay:Q*2,speed:SH}, {lane:0,delay:Q*3,speed:SH}],
+  [...fBeat(0,8,0.333,SH), {lane:0,delay:0,speed:SH}, {lane:0,delay:Q,speed:SH}, {lane:0,delay:Q*2+E,speed:SH}],
+  [...fBeat(0,8,0.333,SH), {lane:0,delay:E,speed:SH}, {lane:0,delay:Q+E,speed:SH}, {lane:0,delay:Q*2,speed:SH}, {lane:0,delay:Q*3,speed:SH}],
+  [...fBeat(0,8,0.333,SH), {lane:0,delay:0,speed:SH}, {lane:0,delay:E,speed:SH}, {lane:0,delay:Q,speed:SH}],
+  [...fBeat(0,16,E/2,SH), {lane:0,delay:0,speed:SH}, {lane:0,delay:Q,speed:SH}, {lane:0,delay:Q*2,speed:SH}],
+];
+
+const ITEMS = [
+  { name: "緋の雫", desc: "HP+30", effect: "heal", value: 30 },
+  { name: "灰霧の壺", desc: "敵減速3s", effect: "slow", value: 3 },
+  { name: "朽ちた投刃", desc: "DMG 8", effect: "damage", value: 8 },
+  { name: "受け流しの残滓", desc: "判定拡大5s", effect: "parry_up", value: 5 },
+];
+
+// ─── Game State ───
+let state = "title"; // title, game, dead, victory
+let boss, playerHp, zanki, combo, maxCombo, totalParry, stats;
+let lockUntil, atkCooldownUntil, atkMsg, atkMsgUntil;
+let bullets, waveCooldown, lastWaveTime;
+let slowUntil, parryUpUntil;
+let inventory, itemCursor;
+let zankiBurstActive, zankiBurstLastTick;
+let flashUntil, flashColor;
+let hitstopUntil;
+const ZANKI_MAX = 10, ZANKI_DRAIN = 4, ZANKI_DPS = 8;
+
+const keys = {};
+document.addEventListener("keydown", e => {
+  if (e.repeat) return;
+  keys[e.code] = true;
+  handleKey(e.code, e.key);
+  e.preventDefault();
+});
+document.addEventListener("keyup", e => { keys[e.code] = false; });
+
+function resetGame() {
+  boss = { ...BOSS, hp: BOSS.maxHp, marks: BOSS.maxMarks };
+  playerHp = 100; zanki = 0; combo = 0; maxCombo = 0; totalParry = 0;
+  stats = { PERFECT: 0, Good: 0, MISS: 0 };
+  lockUntil = 0; atkCooldownUntil = 0; atkMsg = ""; atkMsgUntil = 0;
+  bullets = []; waveCooldown = 1.5; lastWaveTime = performance.now() / 1000;
+  slowUntil = 0; parryUpUntil = 0;
+  inventory = [{ ...ITEMS[0] }, null, null, null]; itemCursor = 0;
+  zankiBurstActive = false; zankiBurstLastTick = 0;
+  flashUntil = 0; flashColor = "#ff0"; hitstopUntil = 0;
+  melodyNote = 0;
+}
+
+function handleKey(code, key) {
+  const now = performance.now() / 1000;
+
+  if (state === "title") {
+    if (code === "KeyJ") { state = "game"; resetGame(); SFX.start(); }
+    return;
+  }
+  if (state === "dead" || state === "victory") {
+    if (code === "KeyR") { state = "game"; resetGame(); SFX.start(); }
+    return;
+  }
+
+  // Parry (J/F) - never locked
+  if (code === "KeyJ" || code === "KeyF") {
+    const laneIdx = code === "KeyJ" ? 0 : 1;
+    const parryBullets = bullets.filter(b => b.active && b.btype === "parry" && b.lane === laneIdx && now >= b.startTime);
+    if (parryBullets.length === 0) return;
+    parryBullets.sort((a, b) => b.pos - a.pos);
+    const tb = parryBullets[0];
+    const pz = laneIdx === 0 ? boss.pzJ : boss.pzF;
+    const bonus = now < parryUpUntil ? 3/60 : 0;
+    const result = judge(tb.pos, pz[0] + bonus, pz[1] + bonus);
+    tb.btype = result === "PERFECT" ? "perfect" : result === "Good" ? "good" : "missed";
+    tb.result = result; tb.resultTime = now;
+    stats[result]++;
+
+    const laneKey = laneIdx === 0 ? "J" : "F";
+    if (result === "PERFECT") {
+      zanki = Math.min(ZANKI_MAX, zanki + 4); combo++; totalParry++;
+      maxCombo = Math.max(maxCombo, combo);
+      if (laneKey === "J") { SFX.perfectJ(melodyNote); melodyNote++; } else SFX.perfectF();
+      flashUntil = now + 0.06; flashColor = "#ff0"; hitstopUntil = now + 0.08;
+    } else if (result === "Good") {
+      zanki = Math.min(ZANKI_MAX, zanki + 1); combo++; totalParry++;
+      maxCombo = Math.max(maxCombo, combo);
+      if (laneKey === "J") { SFX.parryJ(melodyNote); melodyNote++; } else SFX.parryF();
+      flashUntil = now + 0.03; flashColor = "#0f0";
+    } else {
+      playerHp = Math.max(0, playerHp - boss.atk);
+      zanki = Math.max(0, zanki - 2); combo = 0; melodyNote = 0;
+      lockUntil = now + 0.5;
+      SFX.miss();
+    }
+    return;
+  }
+
+  // Attack (Space)
+  if (code === "Space") {
+    if (boss.hp <= 0) return;
+    if (zanki >= ZANKI_MAX && !zankiBurstActive) {
+      zankiBurstActive = true; zankiBurstLastTick = now;
+      SFX.zanki(); atkMsg = ">>> 残火解放！ <<<"; atkMsgUntil = now + 1;
+      flashUntil = now + 0.1; flashColor = "#ff0";
+    } else if (!zankiBurstActive && now >= lockUntil && now >= atkCooldownUntil) {
+      const dmg = WEAPON.atk;
+      if (boss.marks > 0) boss.hp = Math.max(1, boss.hp - dmg);
+      else boss.hp = Math.max(0, boss.hp - dmg);
+      atkMsg = `>>> ${boss.name} に ${dmg} ダメージ！ <<<`;
+      atkMsgUntil = now + 0.8; lockUntil = now + WEAPON.lockSec;
+      atkCooldownUntil = now + WEAPON.cooldown;
+      SFX.attack();
+    }
+    return;
+  }
+
+  // Zanki no Gouka (;)
+  if (code === "Semicolon") {
+    if (zanki >= ZANKI_MAX && boss.marks > 0 && boss.hp <= 1) {
+      boss.marks--; zanki = 0;
+      SFX.zanki();
+      if (boss.marks === 0) {
+        boss.hp = 0; atkMsg = `>>> 撲殺！ ${boss.name} を葬った！ <<<`; SFX.kill();
+      } else {
+        boss.hp = boss.maxHp;
+        atkMsg = `>>> 残火の業火！ ● を削った！ 残り${"●".repeat(boss.marks)} <<<`; SFX.kill();
+      }
+      atkMsgUntil = now + 2; flashUntil = now + 0.6; flashColor = "#ff0"; hitstopUntil = now + 0.3;
+    }
+    return;
+  }
+
+  // Items
+  if (code === "KeyA") itemCursor = (itemCursor + 3) % 4;
+  if (code === "KeyD") itemCursor = (itemCursor + 1) % 4;
+  if (code === "KeyS") {
+    const item = inventory[itemCursor];
+    if (!item) return;
+    if (item.effect === "heal") { playerHp = Math.min(100, playerHp + item.value); atkMsg = `>>> ${item.name}！ HP +${item.value} <<<`; }
+    else if (item.effect === "slow") { slowUntil = now + item.value; atkMsg = `>>> ${item.name}！ 敵の攻撃が鈍る <<<`; }
+    else if (item.effect === "damage") {
+      if (boss.marks > 0) boss.hp = Math.max(1, boss.hp - item.value);
+      else boss.hp = Math.max(0, boss.hp - item.value);
+      atkMsg = `>>> ${item.name}！ ${item.value} ダメージ！ <<<`; SFX.attack();
+    }
+    else if (item.effect === "parry_up") { parryUpUntil = now + item.value; atkMsg = `>>> ${item.name}！ パリィ判定拡大！ <<<`; }
+    atkMsgUntil = now + 1.5; inventory[itemCursor] = null;
+  }
+}
+
+function judge(pos, pzBefore, pzAfter) {
+  if (Math.abs(pos - PERFECT_RATIO) < 0.01) return "PERFECT";
+  if (pos >= PERFECT_RATIO - pzBefore && pos <= PERFECT_RATIO + pzAfter) return "Good";
+  return "MISS";
+}
+
+// ─── Main Loop ───
+function update(now) {
+  now /= 1000;
+  if (state !== "game") return;
+  if (now < hitstopUntil) return;
+
+  // Zanki burst
+  if (zankiBurstActive) {
+    if (!keys["Space"]) {
+      zankiBurstActive = false;
+      if (zanki > 0) { atkMsg = ">>> 残火中断 <<<"; atkMsgUntil = now + 0.8; }
+    } else {
+      const dt = now - zankiBurstLastTick;
+      zankiBurstLastTick = now;
+      zanki = Math.max(0, zanki - ZANKI_DRAIN * dt);
+      const dmg = ZANKI_DPS * dt;
+      if (boss.marks > 0) boss.hp = Math.max(1, boss.hp - dmg);
+      else boss.hp = Math.max(0, boss.hp - dmg);
+      flashUntil = now + 0.03; flashColor = "#ff0";
+      if (zanki <= 0) { zanki = 0; zankiBurstActive = false; atkMsg = ">>> 残火消失... <<<"; atkMsgUntil = now + 1; }
+    }
+  }
+
+  const isSlow = now < slowUntil;
+  const parryBonus = now < parryUpUntil ? 3/60 : 0;
+
+  // Spawn waves
+  if (boss.hp > 0 && now - lastWaveTime > waveCooldown) {
+    let pool;
+    if (boss.hp < boss.maxHp * 0.4) pool = [...WAVE_PATTERNS, ...WAVE_PATTERNS_HARD];
+    else if (boss.hp < boss.maxHp * 0.7) pool = WAVE_PATTERNS;
+    else pool = WAVE_PATTERNS.slice(0, 8);
+    const pattern = pool[Math.floor(Math.random() * pool.length)];
+    const speedMult = isSlow ? 1.5 : 1.0;
+    const patternLen = Math.max(...pattern.map(p => p.delay));
+    for (const p of pattern) {
+      bullets.push({ lane: p.lane, startTime: now + p.delay, speed: p.speed * speedMult,
+        active: true, btype: "parry", result: null, resultTime: 0, pos: 0 });
+    }
+    waveCooldown = patternLen + 0.8 + Math.random() * 0.7;
+    lastWaveTime = now;
+  }
+
+  // Update bullets
+  for (const b of bullets) {
+    if (!b.active) continue;
+    if (now < b.startTime) continue;
+    const elapsed = now - b.startTime;
+    b.pos = Math.min(elapsed / b.speed, 1.0);
+
+    // Auto-miss
+    const pz = b.lane === 0 ? boss.pzJ : boss.pzF;
+    const pzAfter = pz[1] + parryBonus;
+    if (b.btype === "parry" && b.pos > PERFECT_RATIO + pzAfter + 1/60 && b.result !== "MISS") {
+      b.btype = "missed"; b.result = "MISS"; stats.MISS++;
+      playerHp = Math.max(0, playerHp - boss.atk);
+      zanki = Math.max(0, zanki - 2); combo = 0; lockUntil = now + 0.5;
+      SFX.miss();
+    }
+    if (b.pos >= 1) { b.active = false; b.resultTime = now; }
+  }
+  bullets = bullets.filter(b => b.active || (now - b.resultTime < 0.5));
+
+  if (playerHp <= 0) state = "dead";
+  if (boss.hp <= 0) state = "victory";
+}
+
+function draw(timestamp) {
+  requestAnimationFrame(draw);
+  update(timestamp);
+
+  const now = timestamp / 1000;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Flash
+  if (now < flashUntil) {
+    const blink = Math.floor((now - (flashUntil - 0.6)) / 0.08) % 2 === 0;
+    if (blink) { ctx.fillStyle = flashColor + "30"; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+  }
+
+  if (state === "title") { drawTitle(); return; }
+  if (state === "dead") { drawGame(now); drawDeath(); return; }
+  if (state === "victory") { drawGame(now); drawVictory(now); return; }
+  drawGame(now);
+}
+
+function drawTitle() {
+  ctx.fillStyle = "#e33"; ctx.font = "bold 24px monospace";
+  ctx.fillText("NONONONO", 340, 120);
+  ctx.fillStyle = "#fc0"; ctx.font = "bold 20px monospace";
+  ctx.fillText("灰 都 殺 伐 代 行", 300, 170);
+  ctx.fillStyle = "#6cc"; ctx.font = "16px monospace";
+  ctx.fillText("── 灰燼の街に、刃だけが正義を語る ──", 240, 210);
+
+  ctx.fillStyle = "#ccc"; ctx.font = "14px monospace";
+  const lines = [
+    "【 操 作 】",
+    "  F / J     ─  パリィ (2レーンに対応)",
+    "  SPACE     ─  攻撃 / 残火バースト",
+    "  ;         ─  残火の業火 (残火MAX + 敵HP1)",
+    "  A / D     ─  アイテム選択",
+    "  S         ─  アイテム使用",
+    "",
+    "  [J] を押してゲーム開始",
+  ];
+  lines.forEach((l, i) => ctx.fillText(l, 250, 270 + i * 22));
+}
+
+function drawGame(now) {
+  // Title bar
+  ctx.fillStyle = "#fff"; ctx.font = "bold 16px monospace";
+  ctx.fillText("灰 都 殺 伐 代 行", 20, 30);
+
+  // Boss
+  const hpRatio = Math.max(0, boss.hp) / boss.maxHp;
+  ctx.fillStyle = "#fff"; ctx.font = "bold 14px monospace";
+  const marks = "●".repeat(boss.marks) + "○".repeat(boss.maxMarks - boss.marks);
+  ctx.fillText(`${boss.aa} ${boss.name}  ${marks}`, 20, 60);
+  // HP bar
+  ctx.fillStyle = "#333"; ctx.fillRect(20, 70, 400, 14);
+  ctx.fillStyle = boss.hp > boss.maxHp * 0.3 ? "#4a4" : "#a44";
+  ctx.fillRect(20, 70, 400 * hpRatio, 14);
+  ctx.fillStyle = "#fff"; ctx.font = "12px monospace";
+  ctx.fillText(`${Math.ceil(boss.hp)}/${boss.maxHp}`, 430, 82);
+
+  // Lanes
+  const parryBonus = now < parryUpUntil ? 3/60 : 0;
+  const laneLabels = ["[J]", "[F]", "[SPACE]"];
+  const laneY = [110, 170, 230];
+
+  for (let li = 0; li < 3; li++) {
+    const y = laneY[li];
+    ctx.fillStyle = "#aaa"; ctx.font = "bold 14px monospace";
+    ctx.fillText(laneLabels[li], 20, y + 18);
+
+    if (li === 2) {
+      // SPACE lane
+      const barY = y + 4;
+      if (zankiBurstActive) {
+        const ratio = zanki / ZANKI_MAX;
+        ctx.fillStyle = "#333"; ctx.fillRect(BAR_X, barY, BAR_W, BAR_H);
+        ctx.fillStyle = "#fc0"; ctx.fillRect(BAR_X, barY, BAR_W * ratio, BAR_H);
+        ctx.fillStyle = "#fc0"; ctx.font = "bold 14px monospace";
+        ctx.fillText("BURNING!", BAR_X + BAR_W + 10, y + 20);
+      } else if (zanki >= ZANKI_MAX && boss.hp <= 1 && boss.marks > 0) {
+        // Rainbow
+        const hue = (now * 60) % 360;
+        ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+        ctx.fillRect(BAR_X, barY, BAR_W, BAR_H);
+        ctx.fillStyle = "#fff"; ctx.font = "bold 14px monospace";
+        ctx.fillText("[ ; ] 残火の業火！", BAR_X + BAR_W + 10, y + 20);
+      } else if (zanki >= ZANKI_MAX) {
+        ctx.fillStyle = "#fc0"; ctx.fillRect(BAR_X, barY, BAR_W, BAR_H);
+        ctx.fillStyle = "#fc0"; ctx.font = "bold 14px monospace";
+        ctx.fillText("HOLD SPACE!", BAR_X + BAR_W + 10, y + 20);
+      } else if (now < atkCooldownUntil) {
+        const ratio = 1 - (atkCooldownUntil - now) / WEAPON.cooldown;
+        ctx.fillStyle = "#333"; ctx.fillRect(BAR_X, barY, BAR_W, BAR_H);
+        ctx.fillStyle = "#a44"; ctx.fillRect(BAR_X, barY, BAR_W * ratio, BAR_H);
+      } else {
+        ctx.fillStyle = "#4a4"; ctx.fillRect(BAR_X, barY, BAR_W, BAR_H);
+        ctx.fillStyle = "#4a4"; ctx.font = "bold 14px monospace";
+        ctx.fillText("READY!", BAR_X + BAR_W + 10, y + 20);
+      }
+      continue;
+    }
+
+    // Parry lanes (J/F)
+    const pz = li === 0 ? boss.pzJ : boss.pzF;
+    const pzB = pz[0] + parryBonus, pzA = pz[1] + parryBonus;
+    const barY = y + 4;
+
+    // Bar background
+    ctx.fillStyle = "#222"; ctx.fillRect(BAR_X, barY, BAR_W, BAR_H);
+    // Good zone
+    const zoneStart = (PERFECT_RATIO - pzB) * BAR_W;
+    const zoneEnd = (PERFECT_RATIO + pzA) * BAR_W;
+    ctx.fillStyle = "#333"; ctx.fillRect(BAR_X + zoneStart, barY, zoneEnd - zoneStart, BAR_H);
+    // Perfect line
+    ctx.fillStyle = "#888"; ctx.fillRect(BAR_X + PERFECT_RATIO * BAR_W - 1, barY, 3, BAR_H);
+
+    // Bullets
+    const laneBullets = bullets.filter(b => (b.active || b.btype !== "parry") && b.lane === li && now >= b.startTime);
+    for (const b of laneBullets) {
+      const bx = BAR_X + b.pos * BAR_W;
+      if (bx < BAR_X || bx > BAR_X + BAR_W) continue;
+      let color;
+      if (b.btype === "perfect") color = "#44f";
+      else if (b.btype === "good") color = "#4cc";
+      else if (b.btype === "missed") color = "#666";
+      else color = "#f44";
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(bx, barY + BAR_H / 2, 8, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // Player status
+  const sy = 280;
+  // HP
+  ctx.fillStyle = "#fff"; ctx.font = "14px monospace";
+  ctx.fillText("HP", 20, sy + 14);
+  ctx.fillStyle = "#333"; ctx.fillRect(60, sy, 300, 16);
+  ctx.fillStyle = playerHp > 30 ? "#4a4" : "#a44";
+  ctx.fillRect(60, sy, 300 * playerHp / 100, 16);
+  ctx.fillStyle = "#fff"; ctx.fillText(`${playerHp}/100`, 370, sy + 14);
+
+  // Zanki
+  ctx.fillText("残火", 20, sy + 38);
+  ctx.fillStyle = "#333"; ctx.fillRect(60, sy + 24, 300, 16);
+  ctx.fillStyle = zanki >= ZANKI_MAX ? "#fc0" : "#c84";
+  ctx.fillRect(60, sy + 24, 300 * zanki / ZANKI_MAX, 16);
+  ctx.fillStyle = "#fff"; ctx.fillText(`${Math.floor(zanki)}/${ZANKI_MAX}`, 370, sy + 38);
+
+  // Combo
+  ctx.fillText(`COMBO: ${combo}  MAX: ${maxCombo}  |  P:${stats.PERFECT}  G:${stats.Good}  M:${stats.MISS}`, 20, sy + 62);
+
+  // Attack msg
+  if (now < atkMsgUntil) {
+    ctx.fillStyle = "#f6f"; ctx.font = "bold 14px monospace";
+    ctx.fillText(atkMsg, 20, sy + 82);
+  }
+
+  // Items
+  ctx.font = "12px monospace";
+  for (let i = 0; i < 4; i++) {
+    const ix = 20 + i * 160;
+    const sel = i === itemCursor;
+    ctx.fillStyle = sel ? "#fc0" : "#888";
+    const name = inventory[i] ? inventory[i].name : "---";
+    ctx.fillText(`${sel ? ">" : " "}[${i + 1}] ${name}`, ix, sy + 102);
+  }
+
+  // Controls
+  ctx.fillStyle = "#666"; ctx.font = "12px monospace";
+  ctx.fillText("[J/F:パリィ] [SPACE:攻撃] [A/D:アイテム選択] [S:使用] [;:残火の業火]", 20, sy + 122);
+  ctx.fillText(`武器: ${WEAPON.name} (ATK:${WEAPON.atk} CD:${WEAPON.cooldown}s)`, 20, sy + 140);
+
+  // Lock indicator
+  if (now < lockUntil) {
+    ctx.fillStyle = "#f44"; ctx.font = "bold 12px monospace";
+    ctx.fillText(`>>> 硬直中 ${(lockUntil - now).toFixed(1)}s <<<`, 500, sy + 82);
+  }
+}
+
+function drawDeath() {
+  ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#f44"; ctx.font = "bold 28px monospace";
+  ctx.fillText("「 大いなる死に賛歌を！ 」", 180, 280);
+  ctx.fillStyle = "#ccc"; ctx.font = "16px monospace";
+  ctx.fillText("[R] リスタート", 360, 340);
+}
+
+function drawVictory(now) {
+  ctx.fillStyle = "rgba(0,0,0,0.7)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#fc0"; ctx.font = "bold 24px monospace";
+  ctx.fillText("「 灰は燃え尽き、都は静寂に還る 」", 150, 250);
+  ctx.fillStyle = "#fff"; ctx.font = "14px monospace";
+  ctx.fillText(`残りHP: ${playerHp}/100  最大コンボ: ${maxCombo}  総パリィ: ${totalParry}`, 180, 300);
+  ctx.fillText(`PERFECT: ${stats.PERFECT}  Good: ${stats.Good}  MISS: ${stats.MISS}`, 220, 330);
+  ctx.fillStyle = "#ccc"; ctx.font = "16px monospace";
+  ctx.fillText("[R] リスタート", 360, 380);
+}
+
+// ─── Start ───
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
