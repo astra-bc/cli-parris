@@ -35,7 +35,7 @@ LANES = [
 
 WEAPON = {
     "name": "殺意の出刃包丁",
-    "atk": 3,
+    "atk": 5,
     "lock_sec": 0.3,
     "atk_cooldown": 0.8,
 }
