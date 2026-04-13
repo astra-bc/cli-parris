@@ -224,6 +224,15 @@ def main(stdscr):
     curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_YELLOW)  # perfect flash
     curses.init_pair(8, curses.COLOR_BLUE, -1)    # attack bullet (blue)
     curses.init_pair(9, curses.COLOR_CYAN, -1)    # attack point marker
+    # Rainbow background colors (pairs 10-16)
+    curses.init_pair(10, curses.COLOR_WHITE, curses.COLOR_RED)
+    curses.init_pair(11, curses.COLOR_BLACK, curses.COLOR_YELLOW)
+    curses.init_pair(12, curses.COLOR_BLACK, curses.COLOR_GREEN)
+    curses.init_pair(13, curses.COLOR_BLACK, curses.COLOR_CYAN)
+    curses.init_pair(14, curses.COLOR_WHITE, curses.COLOR_BLUE)
+    curses.init_pair(15, curses.COLOR_WHITE, curses.COLOR_MAGENTA)
+    curses.init_pair(16, curses.COLOR_BLACK, curses.COLOR_WHITE)
+    RAINBOW_PAIRS = [10, 11, 12, 13, 14, 15, 16]
 
     # Pre-generate sounds
     sound._ensure_sounds()
@@ -604,7 +613,8 @@ def main(stdscr):
             except curses.error:
                 pass
 
-            # ── Flash effect (blink for zanki, solid for parry) ──
+            # ── Flash / Rainbow effect ──
+            RAINBOW_COMBO_THRESHOLD = 5  # start rainbow at 5 combo
             if now < flash_until:
                 # blink: toggle every 0.08s
                 blink_on = int((now - (flash_until - 0.6)) / 0.08) % 2 == 0
@@ -613,6 +623,13 @@ def main(stdscr):
                         stdscr.bkgd(' ', curses.color_pair(flash_color))
                     else:
                         stdscr.bkgd(' ')
+                except curses.error:
+                    pass
+            elif combo >= RAINBOW_COMBO_THRESHOLD:
+                # color advances with combo count: every 5 combos = next color
+                rainbow_idx = ((combo - RAINBOW_COMBO_THRESHOLD) // 5) % len(RAINBOW_PAIRS)
+                try:
+                    stdscr.bkgd(' ', curses.color_pair(RAINBOW_PAIRS[rainbow_idx]))
                 except curses.error:
                     pass
             else:
