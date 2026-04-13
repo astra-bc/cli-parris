@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nononono"
+version = "0.1.0"
+description = "Nononono - 灰都殺伐代行 - Terminal Roguelike Parry Action Game"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.8"
+authors = [
+    { name = "seiya makino" },
+]
+keywords = ["game", "terminal", "roguelike", "tui", "curses", "parry"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console :: Curses",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Games/Entertainment",
+]
+
+[project.scripts]
+nononono = "cli_parris.game:entry_point"
+
+[project.urls]
+Homepage = "https://github.com/seiyamakino/cli-parris"
+Issues = "https://github.com/seiyamakino/cli-parris/issues"

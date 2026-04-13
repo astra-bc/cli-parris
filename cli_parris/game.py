@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""layout demo - target switching, parry, attack with lock frames"""
+"""灰都殺伐代行 (cli-parris) - Terminal Roguelike Parry Action Game"""
 
 import curses
 import time
@@ -17,7 +17,7 @@ try:
          'tell application "System Events" to key code 102'],
         capture_output=True, timeout=2
     )
-except:
+except Exception:
     pass
 
 BAR_LEN = 40
@@ -33,29 +33,32 @@ WEAPON = {
     "atk_cooldown": 2.0,  # re-attack cooldown (seconds)
 }
 
-ENEMIES = [
+ENEMIES_TEMPLATE = [
     {"name": "渋谷の不動産屋の鼬", "aa": "(^w^)", "star": "★☆☆",
      "hp": 6, "max_hp": 6, "atk": 3, "marks": 1, "marks_max": 1,
      "speed_min": 2.1, "speed_max": 2.9, "cooldown": 1.5,
-     "parry_zone": 6,  # wide parry window
+     "parry_zone": 6,
      "dirs": ["W", "S", "A", "D"]},
     {"name": "(ボス) 堕落した都知事", "aa": "{o_o}", "star": "★★★",
      "hp": 20, "max_hp": 20, "atk": 8, "marks": 3, "marks_max": 3,
      "speed_min": 3.5, "speed_max": 5.0, "cooldown": 0.5,
-     "parry_zone": 1,  # narrow parry window
+     "parry_zone": 1,
      "dirs": ["W", "S", "A", "D"]},
     {"name": "池袋の町中華の豚", "aa": "(-.-)", "star": "★★☆",
      "hp": 8, "max_hp": 8, "atk": 5, "marks": 1, "marks_max": 1,
      "speed_min": 7.0, "speed_max": 10.0, "cooldown": 2.0,
-     "parry_zone": 4,  # widest parry window
+     "parry_zone": 4,
      "dirs": ["W", "S", "A", "D"]},
 ]
+
 
 def rand_speed(enemy):
     return random.uniform(enemy["speed_min"], enemy["speed_max"])
 
+
 def rand_dir(enemy):
     return random.choice(enemy["dirs"])
+
 
 def draw_bar(pos, parry_zone=2):
     bar = list("━" * BAR_LEN)
@@ -69,6 +72,7 @@ def draw_bar(pos, parry_zone=2):
         bar[p] = "●"
     return "".join(bar)
 
+
 def judge(pos, parry_zone=2):
     p = int(pos)
     zone_start = PERFECT_POS - parry_zone
@@ -80,12 +84,20 @@ def judge(pos, parry_zone=2):
     else:
         return "MISS", 3
 
+
 def marks_str(current, maximum):
     return "●" * current + "○" * (maximum - current)
+
 
 def hp_bar(hp, max_hp, length=10):
     filled = int(length * hp / max_hp) if max_hp > 0 else 0
     return "█" * filled + "░" * (length - filled)
+
+
+def make_enemies():
+    import copy
+    return copy.deepcopy(ENEMIES_TEMPLATE)
+
 
 def main(stdscr):
     curses.curs_set(0)
@@ -98,9 +110,12 @@ def main(stdscr):
     curses.init_pair(4, curses.COLOR_CYAN, curses.COLOR_BLACK)
     curses.init_pair(5, curses.COLOR_MAGENTA, curses.COLOR_BLACK)
 
+    ENEMIES = make_enemies()
+
     def reset():
         nonlocal target, player_hp, zanki, stats, combo, max_combo, total_parry, lock_until, atk_msg, atk_msg_until, atk_cooldown_until
-        nonlocal bar_speeds, bar_dirs, bar_starts, results, result_times, positions
+        nonlocal bar_speeds, bar_dirs, bar_starts, results, result_times, positions, ENEMIES
+        ENEMIES = make_enemies()
         target = 0
         player_hp = 100
         zanki = 0
@@ -112,7 +127,6 @@ def main(stdscr):
         atk_msg = ""
         atk_msg_until = 0
         atk_cooldown_until = 0
-        zanki_max = 10
         now = time.time()
         bar_speeds = [rand_speed(e) for e in ENEMIES]
         bar_dirs = [rand_dir(e) for e in ENEMIES]
@@ -120,9 +134,6 @@ def main(stdscr):
         results = [None] * len(ENEMIES)
         result_times = [0.0] * len(ENEMIES)
         positions = [0.0] * len(ENEMIES)
-        for e in ENEMIES:
-            e["hp"] = e["max_hp"]
-            e["marks"] = e["marks_max"]
 
     zanki_max = 10
     target = 0
@@ -148,13 +159,14 @@ def main(stdscr):
 
     # title screen
     title_art = [
-        r"                                                          ",
-        r"    ░█████░░█████░░██████░░██████░░██████░░██████░░██████░ ",
-        r"    ░██░░██░██░░██░██░░██░██░░██░░░██░░░░░░██░░░░░░██░░░░ ",
-        r"    ░██░░██░█████░░██████░██████░░░██████░░██████░░██████░ ",
-        r"    ░██░░██░██░░██░██░░██░██░░██░░░░░░░██░░░░░░██░░██░░░░ ",
-        r"    ░█████░░██░░██░██░░██░██░░██░░██████░░██████░░██████░ ",
-        r"                                                          ",
+        r"                                                                       ",
+        r"  ░██╗░░██╗░█████╗░██╗░░██╗░█████╗░██╗░░██╗░█████╗░██╗░░██╗░█████╗░  ",
+        r"  ░████╗██║██╔══██╗████╗██║██╔══██╗████╗██║██╔══██╗████╗██║██╔══██╗  ",
+        r"  ░██╔██╗██║██║░░██║██╔██╗██║██║░░██║██╔██╗██║██║░░██║██╔██╗██║██║░░██║  ",
+        r"  ░██║╚████║██║░░██║██║╚████║██║░░██║██║╚████║██║░░██║██║╚████║██║░░██║  ",
+        r"  ░██║░╚███║╚█████╔╝██║░╚███║╚█████╔╝██║░╚███║╚█████╔╝██║░╚███║╚█████╔╝  ",
+        r"  ░╚═╝░░╚══╝░╚════╝░╚═╝░░╚══╝░╚════╝░╚═╝░░╚══╝░╚════╝░╚═╝░░╚══╝░╚════╝░  ",
+        r"                                                                       ",
     ]
     title_jp = "灰 都 殺 伐 代 行"
     subtitle = "── 灰燼の街に、刃だけが正義を語る ──"
@@ -237,7 +249,7 @@ def main(stdscr):
 
         try:
             key = stdscr.getch()
-        except:
+        except Exception:
             key = -1
 
         if key == ord('w') or key == ord('W'):
@@ -272,7 +284,6 @@ def main(stdscr):
         for i, enemy in enumerate(ENEMIES):
             is_target = (i == target)
 
-            # name line: | AA name [HPbar] hp/max  marks  stars
             indicator = "|" if is_target else " "
             hp_b = hp_bar(enemy["hp"], enemy["max_hp"])
             m_str = marks_str(enemy["marks"], enemy["marks_max"])
@@ -285,10 +296,8 @@ def main(stdscr):
             else:
                 stdscr.addstr(row, 0, name_line)
 
-            # bar line (1行空けて見やすく)
             row += 2
 
-            # stop bars when player or enemy is dead
             if player_hp <= 0 or enemy["hp"] <= 0:
                 if enemy["hp"] <= 0:
                     stdscr.addstr(row, 2, "--- DEAD ---", curses.A_DIM)
@@ -301,10 +310,10 @@ def main(stdscr):
             elapsed = now - bar_starts[i]
             dur = bar_speeds[i]
             if enemy["hp"] == 1:
-                dur *= 2  # HP1のとき速度半減
+                dur *= 2
 
             if results[i] is not None:
-                bar_str = draw_bar(0, enemy["parry_zone"])  # bullet at start
+                bar_str = draw_bar(0, enemy["parry_zone"])
                 stdscr.addstr(row, 2, bar_str)
 
                 res = results[i]
@@ -326,13 +335,12 @@ def main(stdscr):
                 positions[i] = t * (BAR_LEN - 1)
                 bar_str = draw_bar(positions[i], enemy["parry_zone"])
                 stdscr.addstr(row, 2, bar_str)
-                # color the bullet
                 p = int(positions[i])
                 if 0 <= p < BAR_LEN:
                     if is_target:
-                        stdscr.addstr(row, 2 + p, "●", curses.color_pair(3) | curses.A_BOLD)  # red
+                        stdscr.addstr(row, 2 + p, "●", curses.color_pair(3) | curses.A_BOLD)
                     else:
-                        stdscr.addstr(row, 2 + p, "●", curses.color_pair(1))  # yellow
+                        stdscr.addstr(row, 2 + p, "●", curses.color_pair(1))
                 stdscr.addstr(row, 2 + BAR_LEN + 1, f"[{bar_dirs[i]}]")
 
                 if positions[i] >= BAR_LEN - 1:
@@ -371,14 +379,14 @@ def main(stdscr):
             atk_gauge = "█" * atk_filled + "░" * (10 - atk_filled)
             stdscr.addstr(sep_row + 3, 1, f"ATK [{atk_gauge}] {atk_remain:.1f}s", curses.color_pair(3))
         else:
-            stdscr.addstr(sep_row + 3, 1, f"ATK [██████████] READY!", curses.color_pair(2) | curses.A_BOLD)
+            stdscr.addstr(sep_row + 3, 1, "ATK [██████████] READY!", curses.color_pair(2) | curses.A_BOLD)
 
         # stats + controls
         stdscr.addstr(sep_row + 4, 1, f"COMBO:{combo}  MAX:{max_combo}  PARRY:{total_parry}  |  PERFECT:{stats['PERFECT']}  Good:{stats['Good']}  MISS:{stats['MISS']}")
-        stdscr.addstr(sep_row + 5, 1, f"[WASD:パリィ] [SPACE:攻撃] [↑↓:切替]")
+        stdscr.addstr(sep_row + 5, 1, "[WASD:パリィ] [SPACE:攻撃] [↑↓:切替]")
         stdscr.addstr(sep_row + 6, 1, f"武器: {WEAPON['name']} (ATK:{WEAPON['atk']} 硬直:{WEAPON['lock_sec']}s CD:{atk_cd}s)")
 
-        # game over
+        # game over / victory
         all_dead = all(e["hp"] <= 0 for e in ENEMIES)
         if player_hp <= 0:
             death_art = [
@@ -389,25 +397,25 @@ def main(stdscr):
                 "           u$$$$$$$$$$$$$$$$$$$$$$$u              ",
                 "          u$$$$$$$$$$$$$$$$$$$$$$$$$u             ",
                 "          u$$$$$$$$$$$$$$$$$$$$$$$$$u             ",
-                "          u$$$$$$\"   \"$$$\"   \"$$$$$$u             ",
-                "          \"$$$$\"      u$u      $$$$\"             ",
+                '          u$$$$$$"   "$$$"   "$$$$$$u             ',
+                '          "$$$$"      u$u      $$$$"             ',
                 "           $$$u       u$u       u$$$              ",
                 "           $$$u      u$$$u      u$$$              ",
-                "            \"$$$$uu$$$   $$$uu$$$$\"               ",
-                "             \"$$$$$$$\"   \"$$$$$$$\"                ",
+                '            "$$$$uu$$$   $$$uu$$$$"               ',
+                '             "$$$$$$$"   "$$$$$$$"                ',
                 "               u$$$$$$$u$$$$$$$u                  ",
-                "                u$\"$\"$\"$\"$\"$\"$u                   ",
-                "     uuu        $$u$ $ $ $ $u$$       uuu        ",
+                '                u$"$"$"$"$"$"$u                   ',
+                '     uuu        $$u$ $ $ $ $u$$       uuu        ',
                 "    u$$$$        $$$$$u$u$u$$$       u$$$$        ",
-                "     $$$$$uu      \"$$$$$$$$$\"     uu$$$$$$        ",
-                "   u$$$$$$$$$$$uu    \"\"\"\"\"    uuuu$$$$$$$$$$      ",
-                "   $$$$\"\"\"$$$$$$$$$$uuu   uu$$$$$$$$$\"\"\"$$$\"     ",
-                "    \"\"\"      \"\"$$$$$$$$$$$uu \"\"$\"\"\"              ",
-                "              uuuu \"\"$$$$$$$$$$uuu                ",
-                "     u$$$uuu$$$$$$$$$uu \"\"$$$$$$$$$$$uuu$$$      ",
-                "     $$$$$$$$$$\"\"\"\"           \"\"$$$$$$$$$$$\"      ",
-                "      \"$$$$$\"                    \"\"$$$$\"\"        ",
-                "        $$$\"                        $$$$\"         ",
+                '     $$$$$uu      "$$$$$$$$$"     uu$$$$$$        ',
+                '   u$$$$$$$$$$$uu    """""    uuuu$$$$$$$$$$      ',
+                '   $$$$"""$$$$$$$$$$uuu   uu$$$$$$$$$"""$$$"     ',
+                '    """      ""$$$$$$$$$$$uu ""$"""              ',
+                '              uuuu ""$$$$$$$$$$uuu                ',
+                '     u$$$uuu$$$$$$$$$uu ""$$$$$$$$$$$uuu$$$      ',
+                '     $$$$$$$$$$""""           ""$$$$$$$$$$$"      ',
+                '      "$$$$$"                    ""$$$$""        ',
+                '        $$$"                        $$$$"         ',
             ]
             dr = sep_row + 7
             for di, dline in enumerate(death_art):
@@ -455,7 +463,7 @@ def main(stdscr):
         # input
         try:
             key = stdscr.getch()
-        except:
+        except Exception:
             key = -1
 
         # flush extra bytes (IME/multibyte input)
@@ -480,7 +488,6 @@ def main(stdscr):
             if not is_locked:
                 i = target
                 if results[i] is None:
-                    # check direction match
                     key_dir_map = {
                         ord('w'): "W", ord('W'): "W",
                         ord('s'): "S", ord('S'): "S",
@@ -491,7 +498,6 @@ def main(stdscr):
                     expected_dir = bar_dirs[i]
 
                     if pressed_dir != expected_dir:
-                        # wrong direction = MISS
                         results[i] = "MISS"
                         stats["MISS"] += 1
                         result_times[i] = now
@@ -519,16 +525,13 @@ def main(stdscr):
                             max_combo = max(max_combo, combo)
         elif key == ord(' '):
             if not is_locked and now >= atk_cooldown_until:
-                # attack - only damages HP, cannot kill boss (marks must be 0)
                 i = target
                 e = ENEMIES[i]
                 if e["marks"] > 0:
-                    # has marks: HP can go to 1 but not 0
                     dmg = WEAPON["atk"]
                     e["hp"] = max(1, e["hp"] - dmg)
                     atk_msg = f">>> {e['name']} に {dmg} ダメージ！ <<<"
                 else:
-                    # no marks left: can kill
                     dmg = WEAPON["atk"]
                     e["hp"] = max(0, e["hp"] - dmg)
                     atk_msg = f">>> {e['name']} に {dmg} ダメージ！ <<<"
@@ -536,7 +539,6 @@ def main(stdscr):
                 lock_until = now + WEAPON["lock_sec"]
                 atk_cooldown_until = now + WEAPON["atk_cooldown"]
         elif key in (10, curses.KEY_ENTER):
-            # 残火の血霧 - spend full zanki to remove 1 mark (HP must be 1)
             if zanki >= zanki_max:
                 i = target
                 e = ENEMIES[i]
@@ -553,4 +555,11 @@ def main(stdscr):
 
         time.sleep(0.016)
 
-curses.wrapper(main)
+
+def entry_point():
+    """Entry point for the console_scripts."""
+    curses.wrapper(main)
+
+
+if __name__ == "__main__":
+    entry_point()
