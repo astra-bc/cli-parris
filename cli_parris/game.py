@@ -451,18 +451,14 @@ def main(stdscr):
                         atk_ratio = 1.0 - (atk_remain / atk_cd)
                         atk_filled = int(BAR_LEN * atk_ratio)
                         atk_gauge = "█" * atk_filled + "░" * (BAR_LEN - atk_filled)
-                        # combo color for cooldown bar
-                        cd_color = curses.color_pair(RAINBOW_PAIR) if (can_rgb and combo >= 1) else curses.color_pair(3)
                         try:
-                            stdscr.addstr(row, 14, atk_gauge, cd_color)
+                            stdscr.addstr(row, 14, atk_gauge, curses.color_pair(3))
                         except curses.error:
                             pass
                     else:
-                        # READY bar with combo color
-                        ready_color = curses.color_pair(RAINBOW_PAIR) | curses.A_BOLD if (can_rgb and combo >= 1) else curses.color_pair(2) | curses.A_BOLD
                         try:
-                            stdscr.addstr(row, 14, "█" * BAR_LEN, ready_color)
-                            stdscr.addstr(row, 14 + BAR_LEN + 2, "READY!", ready_color)
+                            stdscr.addstr(row, 14, "█" * BAR_LEN, curses.color_pair(2) | curses.A_BOLD)
+                            stdscr.addstr(row, 14 + BAR_LEN + 2, "READY!", curses.color_pair(2) | curses.A_BOLD)
                         except curses.error:
                             pass
                     row += 2
@@ -648,30 +644,6 @@ def main(stdscr):
                 except curses.error:
                     pass
 
-            # ── Combo color: update SPACE lane gauge RGB ──
-            if can_rgb and combo >= 1:
-                step = 66
-                c = combo - 1
-                cr, cg, cb = 1000, 1000, 1000
-                phase = c // 15
-                pos = c % 15
-                drop = min(pos * step, 1000)
-                channel = phase % 6
-                if channel == 0:    cb = max(0, 1000 - drop)
-                elif channel == 1:  cr = max(0, 1000 - drop); cb = 0
-                elif channel == 2:  cb = min(1000, drop); cr = 0
-                elif channel == 3:  cg = max(0, 1000 - drop); cr = 0
-                elif channel == 4:  cr = min(1000, drop); cg = 0
-                elif channel == 5:  cb = max(0, 1000 - drop); cg = 0
-                try:
-                    curses.init_color(RAINBOW_BG_COLOR, cr, cg, cb)
-                except curses.error:
-                    pass
-            elif can_rgb:
-                try:
-                    curses.init_color(RAINBOW_BG_COLOR, 300, 300, 300)
-                except curses.error:
-                    pass
 
             # ── Game over / Victory ──
             if player_hp <= 0:
