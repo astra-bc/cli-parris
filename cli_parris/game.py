@@ -172,6 +172,13 @@ class Bullet:
         self.pos = 0.0
 
 
+def _hsv_to_rgb_curses(h, s, v):
+    """Convert HSV (h:0-360, s:0-1, v:0-1) to curses RGB (0-1000)."""
+    import colorsys
+    r, g, b = colorsys.hsv_to_rgb(h / 360.0, s, v)
+    return int(r * 1000), int(g * 1000), int(b * 1000)
+
+
 def draw_lane_bar(pos, pz_before, pz_after, bullet_active):
     """Draw a single lane's bar. pz_before/pz_after = Good zone width before/after PERFECT."""
     bar = list("━" * BAR_LEN)
@@ -224,15 +231,16 @@ def main(stdscr):
     curses.init_pair(7, curses.COLOR_BLACK, curses.COLOR_YELLOW)  # perfect flash
     curses.init_pair(8, curses.COLOR_BLUE, -1)    # attack bullet (blue)
     curses.init_pair(9, curses.COLOR_CYAN, -1)    # attack point marker
-    # Rainbow background colors (pairs 10-16)
-    curses.init_pair(10, curses.COLOR_WHITE, curses.COLOR_RED)
-    curses.init_pair(11, curses.COLOR_BLACK, curses.COLOR_YELLOW)
-    curses.init_pair(12, curses.COLOR_BLACK, curses.COLOR_GREEN)
-    curses.init_pair(13, curses.COLOR_BLACK, curses.COLOR_CYAN)
-    curses.init_pair(14, curses.COLOR_WHITE, curses.COLOR_BLUE)
-    curses.init_pair(15, curses.COLOR_WHITE, curses.COLOR_MAGENTA)
-    curses.init_pair(16, curses.COLOR_BLACK, curses.COLOR_WHITE)
-    RAINBOW_PAIRS = [10, 11, 12, 13, 14, 15, 16]
+
+    # Rainbow: use custom color if terminal supports it
+    can_rgb = curses.can_change_color() and curses.COLORS >= 256
+    RAINBOW_BG_COLOR = 100   # custom color slot for background
+    RAINBOW_FG_COLOR = 101   # custom color slot for foreground text
+    RAINBOW_PAIR = 10
+    if can_rgb:
+        curses.init_color(RAINBOW_BG_COLOR, 0, 0, 0)
+        curses.init_color(RAINBOW_FG_COLOR, 1000, 1000, 1000)
+        curses.init_pair(RAINBOW_PAIR, RAINBOW_FG_COLOR, RAINBOW_BG_COLOR)
 
     # Pre-generate sounds
     sound._ensure_sounds()
@@ -614,9 +622,8 @@ def main(stdscr):
                 pass
 
             # ── Flash / Rainbow effect ──
-            RAINBOW_COMBO_THRESHOLD = 5  # start rainbow at 5 combo
+            RAINBOW_COMBO_THRESHOLD = 5
             if now < flash_until:
-                # blink: toggle every 0.08s
                 blink_on = int((now - (flash_until - 0.6)) / 0.08) % 2 == 0
                 try:
                     if blink_on:
@@ -625,15 +632,21 @@ def main(stdscr):
                         stdscr.bkgd(' ')
                 except curses.error:
                     pass
-            elif combo >= RAINBOW_COMBO_THRESHOLD:
-                # color advances with combo count: every 5 combos = next color
-                rainbow_idx = ((combo - RAINBOW_COMBO_THRESHOLD) // 5) % len(RAINBOW_PAIRS)
+            elif combo >= RAINBOW_COMBO_THRESHOLD and can_rgb:
+                # Smooth RGB rainbow: hue shifts 15 degrees per combo
+                hue = ((combo - RAINBOW_COMBO_THRESHOLD) * 15) % 360
+                r, g, b = _hsv_to_rgb_curses(hue, 0.6, 0.3)
+                fr, fg, fb = _hsv_to_rgb_curses(hue, 0.1, 1.0)
                 try:
-                    stdscr.bkgd(' ', curses.color_pair(RAINBOW_PAIRS[rainbow_idx]))
+                    curses.init_color(RAINBOW_BG_COLOR, r, g, b)
+                    curses.init_color(RAINBOW_FG_COLOR, fr, fg, fb)
+                    stdscr.bkgd(' ', curses.color_pair(RAINBOW_PAIR))
                 except curses.error:
                     pass
             else:
                 try:
+                    if can_rgb:
+                        curses.init_color(RAINBOW_BG_COLOR, 0, 0, 0)
                     stdscr.bkgd(' ')
                 except curses.error:
                     pass
