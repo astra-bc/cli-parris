@@ -3,9 +3,9 @@ requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nononono"
-version = "0.1.0"
-description = "Nononono - 灰都殺伐代行 - Terminal Roguelike Parry Action Game"
+name = "nononono2"
+version = "0.2.0"
+description = "Nononono2 - 灰都殺伐代行 - Terminal 2-Lane Parry Action Game"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.8"
@@ -24,8 +24,8 @@ classifiers = [
 ]
 
 [project.scripts]
-nononono = "cli_parris.game:entry_point"
+nononono2 = "cli_parris.game:entry_point"
 
 [project.urls]
-Homepage = "https://github.com/seiyamakino/cli-parris"
-Issues = "https://github.com/seiyamakino/cli-parris/issues"
+Homepage = "https://github.com/astra-bc/cli-parris"
+Issues = "https://github.com/astra-bc/cli-parris/issues"
